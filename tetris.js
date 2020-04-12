@@ -23,10 +23,10 @@ const keyMap = {
 const Shapes = Object.values(Shape);
 const Colors = ['red', 'green', 'blue', 'purple', 'orange'];
 
-const gridRows = 20;
-const gridColumns = 12;
-const tileWidth = 20;
-const tileHeight = 20;
+const gridRows = 22;
+const gridColumns = 14;
+const tileWidth = 30;
+const tileHeight = 30;
 
 const tickPeriod = 25;
 
@@ -201,7 +201,6 @@ Piece.prototype.shift = function(direction) {
 }
 
 Piece.prototype.fall = function() {
-  // TODO: also check if any edge coord of piece is touching a placed piece.
   if (this.isTouchingBottom()) {
     this.placed = true;
     this.render(true);
@@ -463,7 +462,7 @@ Game.prototype.tick = function() {
     }
   }
 
-  if (this.timer % 10 == 0) {
+  if (this.timer % 20 == 0) {
     this.fall();
   }
 
