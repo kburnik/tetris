@@ -1,0 +1,60 @@
+.tile {
+  outline: 1px solid #aaa;
+  display: block;
+  position: absolute;
+}
+
+.tile.block {
+  outline: 1px solid #555;
+}
+.tile.block.red {
+  background: #ffaaaa;
+}
+.tile.block.blue {
+  background: #aaaaff;
+}
+.tile.block.green {
+  background: #aaffaa;
+}
+.tile.block.purple {
+  background: #ffaaff;
+}
+.tile.block.orange {
+  background: #cccc88;
+}
+
+.tile.placed {
+  outline: 0px;
+}
+.tile.placed.red {
+  background: #ee8888;
+}
+.tile.placed.blue {
+  background: #8888ee;
+}
+.tile.placed.green {
+  background: #88ee88;
+}
+.tile.placed.purple {
+  background: #ee88ee;
+}
+.tile.placed.orange {
+  background: #aaaa66;
+}
+
+#score {
+  width: 50px;
+  margin: 5px auto;
+  padding: 5px;
+  background: #ddd;
+}
+
+#grid {
+  margin: 0px auto;
+  width: 480px;
+  height: 400px;
+  background: #eee;
+  border: 5px solid #aaa;
+  display: block;
+  position: relative;
+}
