@@ -20,7 +20,14 @@ const keyMap = {
   'Space': 'rotate',
 }
 
-const Shapes = Object.values(Shape);
+const Shapes = [
+  Shape.L, Shape.R,
+  Shape.T, Shape.T,
+  Shape.O, Shape.O,
+  Shape.I, Shape.I,
+  Shape.Z, Shape.S
+];
+
 const Colors = ['red', 'green', 'blue', 'purple', 'orange'];
 
 const gridRows = 22;
@@ -82,6 +89,14 @@ Point.prototype.isInBounds = function(topBound) {
         this.y >= 0 && this.y < topBound.y;
 }
 
+Point.prototype.isInHorizontalBounds = function(topBound) {
+ return this.x >= 0 && this.x < topBound.x;
+}
+
+Point.prototype.isInVerticalBounds = function(topBound) {
+ return this.y >= 0 && this.y < topBound.y;
+}
+
 Point.prototype.translate = function(offset) {
   return new Point(this.x + offset.x, this.y + offset.y);
 }
@@ -97,9 +112,9 @@ function Piece(grid, shape, color, rotation, position) {
   this.grid = grid;
   this.shape = shape;
   this.color = color;
-  this.rotation = rotation;
   this.position = position;
   this.placed = false;
+  this.setRotation(rotation);
 }
 
 Piece.prototype.isTouchingBottom = function() {
@@ -110,6 +125,20 @@ Piece.prototype.isTouchingBottom = function() {
     }
     var cell = this.grid.getCell(coord);
     if (cell.classList.contains('placed')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Piece.prototype.isTouchingTop = function() {
+  for (var coord of this.getCoordinates()) {
+    coord = coord.translate(new Point(0, 1));
+    if (!coord.isInBounds(this.grid.bounds)) {
+      continue;
+    }
+    var cell = this.grid.getCell(coord);
+    if (coord.y == 0 && cell.classList.contains('placed')) {
       return true;
     }
   }
@@ -138,45 +167,50 @@ Piece.prototype.getTouchingEdge = function() {
   return 0;
 }
 
-Piece.prototype.isTouchingTop = function() {
-  for (var coord of this.getCoordinates()) {
-    coord = coord.translate(new Point(0, 1));
-    if (!coord.isInBounds(this.grid.bounds)) {
-      continue;
-    }
-    var cell = this.grid.getCell(coord);
-    if (coord.y == 0 && cell.classList.contains('placed')) {
-      return true;
-    }
+Piece.prototype.setRotation = function(rotation) {
+  if (this.shape == Shape.O) {
+    this.rotation = 0;
+  } else if (this.shape == Shape.Z || this.shape == Shape.S) {
+    this.rotation = rotation % 2;
+  } else {
+    this.rotation = rotation % 4;
   }
-  return false;
 }
 
 Piece.prototype.rotate = function() {
-  if (this.shape == Shape.O) {
-    return;
-  }
   this.render(false);
 
   var oldRotation = this.rotation;
   var oldPosition = this.position;
 
-  if (this.shape == Shape.Z) {
-    this.rotation = (this.rotation + 1) % 2;
-  } else {
-    this.rotation = (this.rotation + 1) % 4;
-  }
+  this.setRotation(this.  rotation + 1);
 
-  for (var i = 0; i < 2 && !this.isInValidPosition(); i++) {
+  for (var i = 0; i < 2 && !this.isInValidHorizontalPosition(); i++) {
     this.moveBy(this.getTouchingEdge() * -1, 0);
   }
 
-  if (!this.isInValidPosition()) {
+  if (!this.isInValidHorizontalPosition()) {
     this.rotation = oldRotation;
     this.position = oldPosition;
   }
 
   this.render(true);
+}
+
+
+Piece.prototype.isInValidHorizontalPosition = function() {
+  for (const coord of this.getCoordinates()) {
+    if (!coord.isInHorizontalBounds(this.grid.bounds)) {
+      return false;
+    }
+    if (!coord.isInVerticalBounds(this.grid.bounds)) {
+      continue;
+    }
+    if (this.grid.getCell(coord).classList.contains('placed')) {
+      return false;
+    }
+  }
+  return true;
 }
 
 Piece.prototype.isInValidPosition = function() {
@@ -194,7 +228,7 @@ Piece.prototype.isInValidPosition = function() {
 Piece.prototype.shift = function(direction) {
   this.render(false);
   this.moveBy(direction, 0);
-  if (!this.isInValidPosition()) {
+  if (!this.isInValidHorizontalPosition()) {
     this.moveBy(-direction, 0);
   }
   this.render(true);
@@ -348,12 +382,13 @@ Game.prototype.load = function(options) {
 }
 
 Game.prototype.spawnPiece = function() {
-  var shape = Shapes[randIndex(Shapes.length)];
-  var color = Colors[randIndex(Colors.length)];
-  var rotation = 0;
-  var startPoint = new Point(1 + randIndex(this.grid.width - 4), -3);
-  this.piece = new Piece(this.grid, shape, color, rotation, startPoint);
-  this.piece.render(true);
+  const shape = Shapes[randIndex(Shapes.length)];
+  const color = Colors[randIndex(Colors.length)];
+  const rotation = randIndex(4);
+  const startPoint = new Point(1 + randIndex(this.grid.width - 4), -3);
+  var piece = new Piece(this.grid, shape, color, rotation, startPoint);
+  piece.render(true);
+  return piece;
 }
 
 Game.prototype.keydown = function(e) {
@@ -369,7 +404,7 @@ Game.prototype.keyup = function(e) {
 }
 
 Game.prototype.start = function() {
-  this.spawnPiece();
+  this.piece = this.spawnPiece();
   this.tickInterval = setInterval(this.tick.bind(this), tickPeriod);
   document.addEventListener('keydown', this.keydown);
   document.addEventListener('keyup', this.keyup);
@@ -391,7 +426,7 @@ Game.prototype.fall = function() {
   if (this.piece.placed) {
     playNote(160, 20);
     this.maybeClear();
-    this.spawnPiece();
+    this.piece = this.spawnPiece();
   }
 }
 
