@@ -16,6 +16,7 @@ const keyMap = {
   'ArrowRight': 'right',
   'KeyP': 'pause',
   'KeyS': 'down',
+  'KeyM': 'sound',
   'ArrowDown': 'down',
   'Enter': 'drop',
   'Space': 'rotate',
@@ -50,28 +51,6 @@ function createNote(frequency, duration) {
   oscillator.connect(audioCtx.destination);
   oscillator.duration = duration;
   return oscillator;
-}
-
-function playSingleNote(frequency, duration) {
-  var oscillator = createNote(frequency, duration);
-  oscillator.start();
-  setTimeout(function() {
-    oscillator.stop();
-  }, oscillator.duration);
-}
-
-function playMelody(notes) {
-  if (notes.length == 0) {
-    return;
-  }
-
-  var oscillator = createNote(notes[0][0], notes[0][1]);
-  notes.shift();
-  oscillator.start();
-  setTimeout(function() {
-    oscillator.stop();
-    playMelody(notes);
-  }, oscillator.duration);
 }
 
 function clearClassList(element) {
@@ -414,6 +393,7 @@ Game.prototype.reset = function() {
     'drop': 0,
     'pause': 0,
   }
+  this.playSounds = true;
   this.piece = null;
   this.timer = 0;
   this.gameOver = false;
@@ -480,7 +460,7 @@ Game.prototype.fall = function() {
     return;
   }
   if (this.piece.isTouchingTop()) {
-    playSingleNote(120, 200);
+    this.playSingleNote(120, 200);
     this.gameOver = true;
     this.togglePause();
     return;
@@ -488,7 +468,7 @@ Game.prototype.fall = function() {
   this.piece.fall();
 
   if (this.piece.placed) {
-    playSingleNote(160, 20);
+    this.playSingleNote(160, 20);
     this.dropping = false;
     this.piece = this.nextPiece;
     this.nextPiece = this.spawnPiece();
@@ -502,7 +482,7 @@ Game.prototype.maybeClear = function() {
   for (var row = this.grid.height - 1; row >= 0; row--) {
     if (this.grid.isFullRow(row)) {
       this.grid.dropTo(row);
-      playMelody(
+      this.playMelody(
         [
           [(baseNote + 220) * 1, 20], [0, 30],
           [(baseNote + 220) * 2, 20], [0, 30],
@@ -521,8 +501,36 @@ Game.prototype.maybeClear = function() {
 
 Game.prototype.updateSpeed = function() {
   if (this.score % 50 == 0) {
-    this.fallPeriod = Math.max(6, this.fallPeriod - 1);
+    this.fallPeriod = Math.max(12, this.fallPeriod - 1);
   }
+}
+
+Game.prototype.playSingleNote = function(frequency, duration) {
+  if (!this.playSounds) {
+    return;
+  }
+  var oscillator = createNote(frequency, duration);
+  oscillator.start();
+  setTimeout(function() {
+    oscillator.stop();
+  }, oscillator.duration);
+}
+
+Game.prototype.playMelody = function(notes) {
+  if (!this.playSounds) {
+    return;
+  }
+  if (notes.length == 0) {
+    return;
+  }
+  var oscillator = createNote(notes[0][0], notes[0][1]);
+  notes.shift();
+  oscillator.start();
+  var game = this;
+  setTimeout(function() {
+    oscillator.stop();
+    game.playMelody(notes);
+  }, oscillator.duration);
 }
 
 Game.prototype.updateScore = function(points) {
@@ -534,6 +542,10 @@ Game.prototype.togglePause = function() {
   this.paused = !this.paused;
   this.pauseElement.innerHTML = this.gameOver ? "Game Over" : "Paused";
   this.pauseElement.style.visibility = this.paused ? "visible" : "hidden";
+}
+
+Game.prototype.toggleSound = function() {
+  this.playSounds = !this.playSounds;
 }
 
 Game.prototype.shift = function(amount) {
@@ -564,6 +576,11 @@ Game.prototype.tick = function() {
     return;
   }
 
+  if (isSinglePress(this.keys.sound)) {
+    this.toggleSound();
+    this.keys.sound += 20;
+  }
+
   if (this.timer % 10 == 0) {
     this.maybeClear();
   }
@@ -579,29 +596,29 @@ Game.prototype.tick = function() {
 
   if (this.timer % 5 == 0) {
     if (this.keys.down > 4) {
-      playSingleNote(320, 10);
+      this.playSingleNote(320, 10);
       this.fall();
     }
 
     if (this.keys.down > 16) {
-      playSingleNote(320, 10);
+      this.playSingleNote(320, 10);
       this.fall();
     }
 
     if (isStickyPress(this.keys.left)) {
-      playSingleNote(360, 10);
-      playSingleNote(420, 10);
+      this.playSingleNote(360, 10);
+      this.playSingleNote(420, 10);
       this.shift(-1);
     }
 
     if (isStickyPress(this.keys.right)) {
-      playSingleNote(360, 10);
-      playSingleNote(420, 10);
+      this.playSingleNote(360, 10);
+      this.playSingleNote(420, 10);
       this.shift(1);
     }
 
     if (isSinglePress(this.keys.rotate)) {
-      playSingleNote(220, 20);
+      this.playSingleNote(220, 20);
       this.rotate();
       this.keys.rotate += 20;
     }
