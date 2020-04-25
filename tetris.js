@@ -581,6 +581,11 @@ Game.prototype.tick = function() {
     this.keys.sound += 20;
   }
 
+  if (isSinglePress(this.keys.drop)) {
+    this.drop();
+    this.keys.drop += 20;
+  }
+
   if (this.timer % 10 == 0) {
     this.maybeClear();
   }
@@ -588,10 +593,6 @@ Game.prototype.tick = function() {
   if (this.rowsClearedForCurrentBlock > 0) {
     this.timer += 1;
     return;
-  }
-
-  if (this.keys.drop) {
-    this.drop();
   }
 
   if (this.timer % 5 == 0) {
