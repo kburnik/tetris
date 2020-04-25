@@ -3,15 +3,23 @@
 <head>
   <script src='tetris.js'></script>
   <link href='tetris.css' type='text/css' rel='stylesheet'>
+  <title>Tetris by Kristijan Burnik</title>
 </head>
 <body>
-  <div id="score">0</div>
-  <div id="grid"></div>
+  <div id="container">
+    <div id="grid"></div>
+    <div id="score">0</div>
+    <div id="nextBlock"></div>
+    <div id="pause">Paused</div>
+  </div>
 
   <script>
     var game = new Game();
     game.load({
+      container: document.getElementById("container"),
+      pause: document.getElementById("pause"),
       grid: document.getElementById("grid"),
+      nextBlock: document.getElementById("nextBlock"),
       score: document.getElementById("score")
     })
     game.start();

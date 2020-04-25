@@ -6,54 +6,49 @@ body {
   margin: 0;
 }
 .tile {
-  outline: 1px solid #333;
+  outline: 1px solid #2A2A2A;
   display: block;
   position: absolute;
+  z-index: 0;
 }
 
 .tile.block {
-  outline: 1px solid #aaa;
-}
-.tile.block.red {
-  background: #ffaaaa;
-}
-.tile.block.blue {
-  background: #aaaaff;
-}
-.tile.block.green {
-  background: #aaffaa;
-}
-.tile.block.purple {
-  background: #ffaaff;
-}
-.tile.block.orange {
-  background: #cccc88;
+  outline: 1px solid #000;
+  box-shadow: 5px 5px 2px 0px rgba(0,0,0,0.75);
+  z-index: 1;
 }
 
 .tile.placed {
-  outline: 0px;
-}
-.tile.placed.red {
-  background: #ee8888;
-}
-.tile.placed.blue {
-  background: #8888ee;
-}
-.tile.placed.green {
-  background: #88ee88;
-}
-.tile.placed.purple {
-  background: #ee88ee;
-}
-.tile.placed.orange {
-  background: #aaaa66;
+ opacity: 0.9;
 }
 
-#score {
-  width: 50px;
-  margin: 5px auto;
-  padding: 5px;
-  background: #555;
+.tile.red {
+  background: #aa2222;
+}
+.tile.blue {
+  background: #2222aa;
+}
+.tile.green {
+  background: #22aa22;
+}
+.tile.purple {
+  background: #aa22aa;
+}
+.tile.yellow {
+  background: #aaaa22;
+}
+.tile.cyan {
+  background: #22aaaa;
+}
+.tile.orange {
+  background: #bb5522;
+}
+
+
+@keyframes Gradient {
+    0% { background-position:52% 0%; }
+    50% { background-position:49% 100%; }
+    100% { background-position:52% 0%; }
 }
 
 #grid {
@@ -61,7 +56,56 @@ body {
   width: 480px;
   height: 400px;
   background: #222;
-  border: 5px solid #aaa;
+  border: 5px solid #222;
   display: block;
   position: relative;
+
+  background: linear-gradient(135deg, #444, #000);
+  background-position: 0;
+  background-size: 400% 400%;
+
+  animation: Gradient 60s ease infinite;
+}
+
+#container {
+  width: 420px;
+  margin: 30px auto;
+  position: relative;
+}
+
+
+#score {
+  width: 100px;
+  padding: 5px;
+  position: absolute;
+  right: -130px;
+  top: 0px;
+  font-size: 22px;
+  color: green;
+  font-family: "Courier New";
+  font-weight: bold;
+}
+
+
+#pause {
+  text-align: center;
+  position: absolute;
+  width: 300px;
+  margin-left: -150px;
+  height: 40px;
+  margin-top: -20px;
+  left: 50%;
+  top: 50%;
+  font-size: 38px;
+  font-family: "Courier New";
+  color: white;
+  visibility: hidden;
+}
+
+#nextBlock {
+  position: absolute;
+  right: -140px;
+  width: 120px;
+  height: 120px;
+  top: 40px;
 }

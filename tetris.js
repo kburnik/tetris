@@ -17,6 +17,7 @@ const keyMap = {
   'KeyP': 'pause',
   'KeyS': 'down',
   'ArrowDown': 'down',
+  'Enter': 'drop',
   'Space': 'rotate',
 }
 
@@ -28,31 +29,49 @@ const Shapes = [
   Shape.Z, Shape.S
 ];
 
-const Colors = ['red', 'green', 'blue', 'purple', 'orange'];
+const Colors = ['red', 'green', 'blue', 'purple', 'orange', 'yellow', 'cyan'];
 
 const gridRows = 22;
 const gridColumns = 14;
 const tileWidth = 30;
 const tileHeight = 30;
 
-const tickPeriod = 25;
+const tickPeriod = 10;
 
 // create web audio api context
 var audioCtx = new(window.AudioContext || window.webkitAudioContext)();
 
-function playNote(frequency, duration) {
+function createNote(frequency, duration) {
   // create Oscillator node
   var oscillator = audioCtx.createOscillator();
 
   oscillator.type = 'square';
   oscillator.frequency.value = frequency; // value in hertz
   oscillator.connect(audioCtx.destination);
-  oscillator.start();
+  oscillator.duration = duration;
+  return oscillator;
+}
 
-  setTimeout(
-    function() {
-      oscillator.stop();
-    }, duration);
+function playSingleNote(frequency, duration) {
+  var oscillator = createNote(frequency, duration);
+  oscillator.start();
+  setTimeout(function() {
+    oscillator.stop();
+  }, oscillator.duration);
+}
+
+function playMelody(notes) {
+  if (notes.length == 0) {
+    return;
+  }
+
+  var oscillator = createNote(notes[0][0], notes[0][1]);
+  notes.shift();
+  oscillator.start();
+  setTimeout(function() {
+    oscillator.stop();
+    playMelody(notes);
+  }, oscillator.duration);
 }
 
 function clearClassList(element) {
@@ -77,6 +96,14 @@ function onlyUnique(value, index, self) {
 
 function randIndex(max) {
   return Math.floor(Math.random() * max);
+}
+
+function isStickyPress(key) {
+  return key > 0 && key < 6 || key > 32;
+}
+
+function isSinglePress(key) {
+  return key > 0 && key < 6;
 }
 
 function Point(x, y) {
@@ -249,6 +276,18 @@ Piece.prototype.moveBy = function(x, y) {
   this.position = this.position.translate(new Point(x, y));
 }
 
+Piece.prototype.renderToDisplayGrid = function(grid) {
+  grid.reset();
+  var coordinates = this.getCoordinates();
+  var minX = Math.min.apply(null, coordinates.map(coord => coord.x));
+  var minY = Math.min.apply(null, coordinates.map(coord => coord.y));
+  for (var coord of coordinates) {
+    var cell = grid.getCell(coord.translate(new Point(-minX, -minY)));
+    cell.classList.add('block');
+    cell.classList.add(this.color);
+  }
+}
+
 Piece.prototype.getVisibleCoordinates = function() {
   return this.getCoordinates().filter(
     coord => coord.isInBounds(this.grid.bounds));
@@ -289,7 +328,6 @@ Piece.prototype.render = function(isActive) {
 function createTile(row, column) {
   var tile = document.createElement('div');
   tile.classList.add('tile');
-
   tile.style.top = (row * tileHeight) + 'px';
   tile.style.left = (column * tileWidth) + 'px';
   tile.style.width = tileWidth + 'px';
@@ -336,6 +374,15 @@ function createGrid(parent, width, height) {
       tile.classList.add('tile');
     }
   }
+  grid.rowHasActiveBlock = function(row) {
+   for (var j = 0; j < grid.width; j++) {
+      var tile = grid[row][j];
+      if (tile.classList.contains('block')) {
+        return true;
+      }
+    }
+    return false;
+  }
   grid.swapRows = function(rowA, rowB) {
     for (var j = 0; j < grid.width; j++) {
       swapClasses(grid[rowA][j], grid[rowB][j])
@@ -343,8 +390,8 @@ function createGrid(parent, width, height) {
   }
   grid.dropTo = function(row) {
     grid.resetRow(row);
-    for (var i = row - 1; i >= 0; i--) {
-      this.swapRows(i, i + 1);
+    for (var i = row - 1; i >= 0 && !grid.rowHasActiveBlock(i); i--) {
+      grid.swapRows(i, i + 1);
     }
   }
   return grid;
@@ -353,32 +400,48 @@ function createGrid(parent, width, height) {
 function Game() {}
 
 Game.prototype.reset = function() {
-  if (this.tickInterval) clearInterval(this.tickInterval);
-  this.timer = 0;
+  if (this.tickInterval) {
+    clearInterval(this.tickInterval);
+  }
   document.removeEventListener('keydown', this.keydown);
   document.removeEventListener('keyup', this.keyup);
-  this.piece = null;
   this.keys = {
+    'up': 0,
     'down': 0,
     'right': 0,
     'left': 0,
     'rotate': 0,
+    'drop': 0,
     'pause': 0,
   }
+  this.piece = null;
+  this.timer = 0;
+  this.gameOver = false;
+  this.fallPeriod = 60;
+  this.dropping = false;
   this.grid.reset();
   this.paused = false;
   this.score = 0;
+  this.rowsClearedForCurrentBlock = 0;
   this.updateScore(0);
   console.log("Game has been reset");
 }
 
 Game.prototype.load = function(options) {
   this.grid = createGrid(options.grid, gridColumns, gridRows);
+  this.nextBlockGrid = createGrid(options.nextBlock, 4, 4);
+  this.gridElement = options.grid;
   this.scoreElement = options.score;
+  this.containerElement = options.container;
+  this.nextBlockElement = options.nextBlock;
+  this.pauseElement = options.pause;
   this.keydown = this.keydown.bind(this);
   this.keyup = this.keyup.bind(this);
   console.log("Game loaded.");
   this.reset();
+
+  this.containerElement.style.width = this.gridElement.style.width;
+  this.containerElement.style.height = this.gridElement.style.height;
 }
 
 Game.prototype.spawnPiece = function() {
@@ -387,7 +450,6 @@ Game.prototype.spawnPiece = function() {
   const rotation = randIndex(4);
   const startPoint = new Point(1 + randIndex(this.grid.width - 4), -3);
   var piece = new Piece(this.grid, shape, color, rotation, startPoint);
-  piece.render(true);
   return piece;
 }
 
@@ -405,6 +467,8 @@ Game.prototype.keyup = function(e) {
 
 Game.prototype.start = function() {
   this.piece = this.spawnPiece();
+  this.nextPiece = this.spawnPiece();
+  this.nextPiece.renderToDisplayGrid(this.nextBlockGrid);
   this.tickInterval = setInterval(this.tick.bind(this), tickPeriod);
   document.addEventListener('keydown', this.keydown);
   document.addEventListener('keyup', this.keyup);
@@ -416,30 +480,48 @@ Game.prototype.fall = function() {
     return;
   }
   if (this.piece.isTouchingTop()) {
-    playNote(120, 200);
-    this.reset();
-    this.start();
+    playSingleNote(120, 200);
+    this.gameOver = true;
+    this.togglePause();
     return;
   }
   this.piece.fall();
 
   if (this.piece.placed) {
-    playNote(160, 20);
-    this.maybeClear();
-    this.piece = this.spawnPiece();
+    playSingleNote(160, 20);
+    this.dropping = false;
+    this.piece = this.nextPiece;
+    this.nextPiece = this.spawnPiece();
+    this.nextPiece.renderToDisplayGrid(this.nextBlockGrid);
   }
 }
 
 Game.prototype.maybeClear = function() {
-  var rows = this.piece.getVisibleCoordinates().map(coord => coord.y);
-  for (const row of rows) {
-    while (this.grid.isFullRow(row)) {
+  var baseNoteOffsets = [0, 40, 60, 80];
+  var baseNote = baseNoteOffsets[this.rowsClearedForCurrentBlock % 4];
+  for (var row = this.grid.height - 1; row >= 0; row--) {
+    if (this.grid.isFullRow(row)) {
       this.grid.dropTo(row);
-      playNote(440, 10);
-      playNote(880, 30);
-      playNote(1720, 50);
+      playMelody(
+        [
+          [(baseNote + 220) * 1, 20], [0, 30],
+          [(baseNote + 220) * 2, 20], [0, 30],
+          [(baseNote + 220) * 4, 20], [0, 30],
+          [(baseNote + 220) * 8, 20], [0, 30],
+        ]);
       this.updateScore(10);
+      this.updateSpeed();
+      this.rowsClearedForCurrentBlock++;
+      return true;
     }
+  }
+  this.rowsClearedForCurrentBlock = 0;
+  return false;
+}
+
+Game.prototype.updateSpeed = function() {
+  if (this.score % 50 == 0) {
+    this.fallPeriod = Math.max(6, this.fallPeriod - 1);
   }
 }
 
@@ -448,56 +530,84 @@ Game.prototype.updateScore = function(points) {
   this.scoreElement.innerHTML = this.score;
 }
 
+Game.prototype.togglePause = function() {
+  this.paused = !this.paused;
+  this.pauseElement.innerHTML = this.gameOver ? "Game Over" : "Paused";
+  this.pauseElement.style.visibility = this.paused ? "visible" : "hidden";
+}
+
+Game.prototype.shift = function(amount) {
+  this.piece.shift(amount);
+}
+
+Game.prototype.drop = function() {
+  this.dropping = true;
+}
+
+Game.prototype.rotate = function() {
+  this.piece.rotate();
+}
+
 Game.prototype.tick = function() {
-
-  function isStickyPress(key) {
-    return key > 0 && key < 3 || key > 16;
-  }
-
-  function isSinglePress(key) {
-    return key > 0 && key < 3;
-  }
-
   if (isSinglePress(this.keys.pause)) {
-    this.paused = !this.paused;
-    this.keys.pause += 10;
+    this.togglePause();
+    this.keys.pause += 20;
   }
 
   if (this.paused) {
+    return;
+  }
+
+  if (this.gameOver) {
+    this.reset();
+    this.start();
+    return;
+  }
+
+  if (this.timer % 10 == 0) {
+    this.maybeClear();
+  }
+
+  if (this.rowsClearedForCurrentBlock > 0) {
     this.timer += 1;
     return;
   }
 
-  if (this.timer % 2 == 0) {
+  if (this.keys.drop) {
+    this.drop();
+  }
+
+  if (this.timer % 5 == 0) {
     if (this.keys.down > 4) {
-      playNote(320, 10);
+      playSingleNote(320, 10);
       this.fall();
     }
+
     if (this.keys.down > 16) {
-      playNote(320, 10);
+      playSingleNote(320, 10);
       this.fall();
     }
 
     if (isStickyPress(this.keys.left)) {
-      playNote(360, 10);
-      playNote(420, 10);
-      this.piece.shift(-1);
+      playSingleNote(360, 10);
+      playSingleNote(420, 10);
+      this.shift(-1);
     }
 
     if (isStickyPress(this.keys.right)) {
-      playNote(360, 10);
-      playNote(420, 10);
-      this.piece.shift(1);
+      playSingleNote(360, 10);
+      playSingleNote(420, 10);
+      this.shift(1);
     }
 
     if (isSinglePress(this.keys.rotate)) {
-      playNote(220, 20);
-      this.piece.rotate();
-      this.keys.rotate += 10;
+      playSingleNote(220, 20);
+      this.rotate();
+      this.keys.rotate += 20;
     }
   }
 
-  if (this.timer % 20 == 0) {
+  if (this.dropping || this.timer % this.fallPeriod == 0) {
     this.fall();
   }
 
@@ -506,5 +616,6 @@ Game.prototype.tick = function() {
      this.keys[key] += 1;
     }
   }
+
   this.timer += 1;
 }
