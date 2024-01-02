@@ -6,11 +6,34 @@
   <title>Tetris by Kristijan Burnik</title>
 </head>
 <body>
-  <div id="container">
-    <div id="grid"></div>
-    <div id="score">0</div>
-    <div id="nextBlock"></div>
-    <div id="pause">Paused</div>
+  <div class="row">
+    <div class="column">
+      <div id="container">
+        <div id="grid"></div>
+        <div id="pause"><div>Paused</div></div>
+      </div>
+    </div>
+    <div class="column" style="margin-left: 20px;">
+      <div id="score">0</div>
+      <div id="nextBlock"></div>
+    </div>
+  </div>
+  <div id="controls-container" class="row">
+    <div id="controls">
+      <div class="row">
+        <button id="ctl-left" data-key="left">&larr;</button>
+        <button id="ctl-rotate" data-key="rotate">&#8631;</button>
+        <button id="ctl-right" data-key="right">&rarr;</button>
+      </div>
+      <div class="row">
+        <button id="ctl-down" data-key="down">&darr;</button>
+        <button id="ctl-drop" data-key="drop">_</button>
+      </div>
+      <div class="row">
+        <button id="ctl-pause" data-key="pause">P</button>
+        <button id="ctl-sound" data-key="sound">M</button>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -20,7 +43,8 @@
       pause: document.getElementById("pause"),
       grid: document.getElementById("grid"),
       nextBlock: document.getElementById("nextBlock"),
-      score: document.getElementById("score")
+      score: document.getElementById("score"),
+      buttons: document.querySelectorAll("#controls button")
     })
     game.start();
   </script>

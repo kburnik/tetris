@@ -34,9 +34,6 @@ const Colors = ['red', 'green', 'blue', 'purple', 'orange', 'yellow', 'cyan'];
 
 const gridRows = 22;
 const gridColumns = 14;
-const tileWidth = 30;
-const tileHeight = 30;
-
 const tickPeriod = 10;
 
 // create web audio api context
@@ -304,7 +301,7 @@ Piece.prototype.render = function(isActive) {
   }
 }
 
-function createTile(row, column) {
+function createTile(row, column, tileWidth, tileHeight) {
   var tile = document.createElement('div');
   tile.classList.add('tile');
   tile.style.top = (row * tileHeight) + 'px';
@@ -314,12 +311,12 @@ function createTile(row, column) {
   return tile;
 }
 
-function createGrid(parent, width, height) {
+function createGrid(parent, width, height, tileWidth, tileHeight) {
   var grid = [];
   for (var i = 0; i < height; i++) {
     var row = [];
     for (var j = 0; j < width; j++) {
-      var tile = createTile(i, j)
+      var tile = createTile(i, j, tileWidth, tileHeight)
       parent.appendChild(tile);
       row.push(tile);
     }
@@ -404,12 +401,23 @@ Game.prototype.reset = function() {
   this.score = 0;
   this.rowsClearedForCurrentBlock = 0;
   this.updateScore(0);
+  for (const button of this.buttons) {
+    button.removeEventListener("mousedown", this.mousedown);
+    button.removeEventListener("mouseup", this.mouseup);
+  }
   console.log("Game has been reset");
 }
 
 Game.prototype.load = function(options) {
-  this.grid = createGrid(options.grid, gridColumns, gridRows);
-  this.nextBlockGrid = createGrid(options.nextBlock, 4, 4);
+  const isVertical = screen.width < screen.height;
+  const lowerDimension = Math.min(window.innerWidth, window.innerHeight);
+  const lowerGridCount = Math.min(gridColumns, gridRows);
+  const higherGridCount = Math.max(gridColumns, gridRows)
+  const tileSize = isVertical ?
+      Math.floor(lowerDimension / (lowerGridCount + 5)) :
+      Math.floor(lowerDimension / (higherGridCount + 5));
+  this.grid = createGrid(options.grid, gridColumns, gridRows, tileSize, tileSize);
+  this.nextBlockGrid = createGrid(options.nextBlock, 4, 4, tileSize, tileSize);
   this.gridElement = options.grid;
   this.scoreElement = options.score;
   this.containerElement = options.container;
@@ -417,6 +425,9 @@ Game.prototype.load = function(options) {
   this.pauseElement = options.pause;
   this.keydown = this.keydown.bind(this);
   this.keyup = this.keyup.bind(this);
+  this.mousedown = this.mousedown.bind(this);
+  this.mouseup = this.mouseup.bind(this);
+  this.buttons = options.buttons;
   console.log("Game loaded.");
   this.reset();
 
@@ -436,6 +447,7 @@ Game.prototype.spawnPiece = function() {
 Game.prototype.keydown = function(e) {
   if (e.code in keyMap && this.keys[keyMap[e.code]] == 0) {
     this.keys[keyMap[e.code]] = 1;
+    e.preventDefault();
   }
 }
 
@@ -445,6 +457,25 @@ Game.prototype.keyup = function(e) {
   }
 }
 
+Game.prototype.mousedown = function(e) {
+  const key = e.target.dataset.key;
+  if (key in this.keys) {
+    this.keys[key] = 1;
+  }
+  e.preventDefault();
+  return false;
+}
+
+Game.prototype.mouseup = function(e) {
+  setTimeout((function() {
+    const key = e.target.dataset.key;
+    if (key in this.keys) {
+      this.keys[key] = 0;
+    }
+  }).bind(this), 100);
+}
+
+
 Game.prototype.start = function() {
   this.piece = this.spawnPiece();
   this.nextPiece = this.spawnPiece();
@@ -452,6 +483,10 @@ Game.prototype.start = function() {
   this.tickInterval = setInterval(this.tick.bind(this), tickPeriod);
   document.addEventListener('keydown', this.keydown);
   document.addEventListener('keyup', this.keyup);
+  for (const button of this.buttons) {
+    button.addEventListener("mousedown", this.mousedown);
+    button.addEventListener("mouseup", this.mouseup);
+  }
   console.log("Game started");
 }
 
